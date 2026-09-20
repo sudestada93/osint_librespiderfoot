@@ -11,7 +11,7 @@ from pathlib import Path
 from fastapi import FastAPI, Query, Request
 from fastapi.templating import Jinja2Templates
 
-from .modules import dns_module, whois_module
+from .modules import dns_module, subdomains_module, whois_module
 
 # BASE_DIR apunta siempre a la carpeta raíz del proyecto (mini-spider/),
 # sin importar desde qué directorio se ejecute el comando "uvicorn".
@@ -48,6 +48,13 @@ def scan_whois(target: str = Query(..., description="Dominio a consultar, ej: ex
     """Ejecuta el módulo WHOIS sobre el dominio indicado."""
     target = target.strip().lower()
     return {"target": target, "module": "whois", "results": whois_module.run(target)}
+
+
+@app.get("/api/scan/subdomains")
+def scan_subdomains(target: str = Query(..., description="Dominio a buscar, ej: example.com")):
+    """Ejecuta el módulo de subdominios (crt.sh) sobre el dominio indicado."""
+    target = target.strip().lower()
+    return {"target": target, "module": "subdomains", "results": subdomains_module.run(target)}
 
 
 @app.get("/")

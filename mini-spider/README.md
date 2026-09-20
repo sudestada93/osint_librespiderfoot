@@ -32,10 +32,19 @@ MiniSpider recibe un objetivo en un solo campo de texto y **detecta automáticam
 | Módulo | Qué hace | Tipo |
 |---|---|---|
 | `email_lookup` | Dominio, registros MX, si es un email descartable/temporal, y perfil público en Gravatar | Pasivo |
+| `email_accounts` | Revisa si el email está registrado en ~6 plataformas (Microsoft, Mozilla, Duolingo, Instagram, Spotify, Adobe) | Pasivo, no viene tildado por defecto |
 | `phone_lookup` | Valida el teléfono y extrae país, región, operador, tipo de línea y huso horario -- **100% offline**, sin ninguna llamada de red | Ninguno |
 | `username_lookup` | Revisa en paralelo si el username existe en ~13 plataformas (GitHub, GitLab, Reddit, Instagram, Twitter/X, Telegram, Steam, etc.) | Pasivo |
 
-`username_lookup` es **best-effort**: algunas plataformas (Instagram, TikTok, Twitter/X, Pinterest) tienen protecciones anti-bot que pueden dar falsos positivos o negativos. Un "no encontrado" no es garantía de que el username no exista ahí -- es una señal, no una certeza.
+`username_lookup` y `email_accounts` son **best-effort**: prueban mecanismos públicos de cada sitio (páginas de perfil, o el formulario de "¿ya tenés cuenta?") que ninguna plataforma documenta ni garantiza -- pueden cambiar sin aviso, y algunas (Instagram, TikTok, Twitter/X, Pinterest) además tienen protecciones anti-bot. Un "no encontrado" no es garantía de que la cuenta no exista -- es una señal, no una certeza. `email_accounts` en particular no viene tildado por defecto: consultar muchos emails seguido puede hacer que esos sitios te bloqueen temporalmente la IP, así que hay que pedirlo a propósito, con moderación.
+
+### Verificar si una contraseña fue filtrada (no es un "scan")
+
+Hay un panel aparte, arriba del formulario principal, para revisar si una contraseña puntual apareció en una brecha de datos conocida. Usa la API pública **Pwned Passwords** (k-anonymity: la contraseña completa nunca sale de tu máquina, solo se manda un fragmento de su hash) -- gratis, sin API key.
+
+**Este resultado nunca se guarda**: ni la contraseña, ni su hash, ni el resultado quedan en el historial ni en la base de datos. Se calcula al momento y se muestra en pantalla.
+
+No existe un chequeo gratis equivalente para "¿mi *email* apareció en alguna brecha?" -- ese servicio (Have I Been Pwned, búsqueda por email) dejó de tener plan gratuito.
 
 Los resultados con links (perfiles encontrados en `username_lookup`, el perfil de Gravatar en `email_lookup`) se muestran como enlaces clicables en la interfaz, además del JSON completo.
 
@@ -122,6 +131,10 @@ curl -X POST http://localhost:8000/api/scan -H "Content-Type: application/json" 
 # Ver qué tipo detecta MiniSpider para un texto dado, y qué módulos aplican
 curl "http://localhost:8000/api/detect-type?target=alguien@gmail.com"
 
+# Verificar una contraseña filtrada (POST, nunca se guarda)
+curl -X POST http://localhost:8000/api/check-password -H "Content-Type: application/json" \
+  -d '{"password": "la-contraseña-a-revisar"}'
+
 # Historial y exportación
 curl http://localhost:8000/api/scans
 curl "http://localhost:8000/api/scans/1/export?format=csv" -o scan.csv
@@ -141,7 +154,8 @@ mini-spider/
 │   │   ├── export.py        # Exportación a CSV
 │   │   └── target_utils.py  # Detección automática del tipo de objetivo
 │   ├── models/
-│   │   └── scan.py          # Modelo Pydantic del request de scan
+│   │   ├── scan.py          # Modelo Pydantic del request de scan
+│   │   └── password.py      # Modelo Pydantic del chequeo de contraseña
 │   └── modules/              # Un archivo por módulo de reconocimiento
 ├── frontend/
 │   ├── templates/index.html
@@ -163,6 +177,8 @@ mini-spider/
 - **El teléfono se interpreta mal (país equivocado)** → si no escribiste el `+código de país`, MiniSpider usa la región del campo "región por defecto" (o `US` si lo dejaste vacío). Escribí el teléfono completo con `+` para evitar ambigüedad.
 - **`username_lookup` no encuentra un perfil que sabés que existe** → puede ser una plataforma con protección anti-bot (ver la sección de arriba); no es 100% confiable en todas las plataformas por diseño.
 - **`email_lookup` no encuentra Gravatar** → la mayoría de la gente no tiene un perfil de Gravatar público; no es un error, es el resultado esperado para la mayoría de los emails.
+- **`email_accounts` marca cosas raras, o casi todo "no encontrado"** → esta es la técnica menos confiable del proyecto (ver la advertencia de arriba). Si te parece que está mal para una plataforma puntual, probalo manualmente en el navegador antes de confiar en el resultado.
+- **El chequeo de contraseña da error** → el servicio de Pwned Passwords puede estar caído, lento, o bloqueado por el firewall/proxy de tu red. Probá de nuevo en unos minutos.
 
 ## Licencia y filosofía
 

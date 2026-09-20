@@ -21,13 +21,16 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from .core import database, export, orchestrator, target_utils
+from .models.password import PasswordCheckRequest
 from .models.scan import ScanRequest
 from .modules import (
     dns_module,
+    email_accounts_module,
     email_lookup_module,
     emails_module,
     geoip_module,
     headers_module,
+    password_breach_module,
     phone_lookup_module,
     ports_module,
     robots_module,
@@ -213,6 +216,35 @@ async def scan_username_lookup(target: str = Query(..., description="Username a 
     """Revisa en paralelo si target existe como username en una lista de plataformas conocidas (best-effort)."""
     result = await username_lookup_module.run(target)
     return {"target": target, "module": "username_lookup", "results": result}
+
+
+@app.get("/api/scan/email_accounts")
+async def scan_email_accounts(target: str = Query(..., description="Email a buscar en varias plataformas")):
+    """
+    Revisa en paralelo si target está registrado en ~6 plataformas grandes,
+    probando el mismo mecanismo que usan sus formularios de login/registro.
+
+    ADVERTENCIA: técnica best-effort y no documentada oficialmente por
+    ninguna plataforma; puede cambiar sin aviso. Usar con moderación
+    (no en loop) para evitar bloqueos temporales de IP de esos sitios.
+    """
+    result = await email_accounts_module.run(target)
+    return {"target": target, "module": "email_accounts", "results": result}
+
+
+# --- Chequeo de contraseñas filtradas: NO es un "scan", no se guarda ------
+
+@app.post("/api/check-password")
+def check_password(payload: PasswordCheckRequest):
+    """
+    Revisa si una contraseña apareció en brechas conocidas (Pwned
+    Passwords, k-anonymity: la contraseña completa nunca sale de acá).
+
+    A propósito es POST (no GET) para que la contraseña nunca quede en
+    la URL ni en logs de acceso, y el resultado NUNCA se guarda en la
+    base de datos ni en el historial.
+    """
+    return password_breach_module.check_password(payload.password)
 
 
 # --- Scan completo (orquestador) + historial persistido en SQLite ---------

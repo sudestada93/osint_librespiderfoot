@@ -15,6 +15,7 @@ from typing import Callable
 
 from ..modules import (
     dns_module,
+    email_accounts_module,
     email_lookup_module,
     emails_module,
     geoip_module,
@@ -48,14 +49,19 @@ SYNC_MODULES: dict[str, Callable] = {
 ASYNC_MODULES: dict[str, Callable] = {
     "ports": ports_module.run,
     "username_lookup": username_lookup_module.run,
+    "email_accounts": email_accounts_module.run,
 }
 
 ALL_MODULE_NAMES = sorted(set(SYNC_MODULES) | set(ASYNC_MODULES))
 
-# El escaneo de puertos es el único módulo ACTIVO (genera tráfico real
-# contra el objetivo) y puede ser lento si se pide un rango grande, así
-# que no se incluye en un scan "por defecto": hay que pedirlo explícito.
-DEFAULT_MODULES = [name for name in ALL_MODULE_NAMES if name != "ports"]
+# Módulos que no se corren en un scan "por defecto", hay que pedirlos
+# explícito: "ports" porque es activo (tráfico real contra el objetivo),
+# y "email_accounts" porque prueba el formulario de login/registro de
+# varios sitios de terceros -- usarlo seguido puede hacer que esos
+# sitios bloqueen temporalmente tu IP, así que no queremos dispararlo
+# sin que el usuario lo pida a propósito.
+_NOT_DEFAULT = {"ports", "email_accounts"}
+DEFAULT_MODULES = [name for name in ALL_MODULE_NAMES if name not in _NOT_DEFAULT]
 
 # Qué tipos de objetivo (ver core/target_utils.py) tiene sentido pasarle
 # a cada módulo. No tiene sentido correr WHOIS sobre un email, o el
@@ -72,6 +78,7 @@ MODULE_TARGET_TYPES: dict[str, set[str]] = {
     "wayback": {"domain"},
     "ports": {"domain", "ip"},
     "email_lookup": {"email"},
+    "email_accounts": {"email"},
     "phone_lookup": {"phone"},
     "username_lookup": {"username"},
 }
@@ -83,8 +90,8 @@ def modules_for_target_type(target_type: str) -> list[str]:
 
 
 def default_modules_for_target_type(target_type: str) -> list[str]:
-    """Igual que modules_for_target_type, pero sin 'ports' (el único módulo activo)."""
-    return [name for name in modules_for_target_type(target_type) if name != "ports"]
+    """Igual que modules_for_target_type, pero sin los módulos que no van por defecto (ver _NOT_DEFAULT)."""
+    return [name for name in modules_for_target_type(target_type) if name not in _NOT_DEFAULT]
 
 
 async def run_scan(

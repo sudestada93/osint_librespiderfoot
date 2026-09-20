@@ -19,8 +19,24 @@
             datos tuyos, o con autorización explícita. Buscar el email, teléfono o username de OTRA persona
             sin su consentimiento puede ser ilegal (leyes de protección de datos/privacidad) según tu
             jurisdicción, incluso si toda la información viene de fuentes públicas. El escaneo de puertos
-            además genera tráfico real contra el host indicado.
+            genera tráfico real contra el host indicado, y el módulo "email_accounts" prueba el login/registro
+            de sitios de terceros -- usalo con moderación, no en loop, para no hacer que te bloqueen la IP.
         </div>
+
+        <section class="panel">
+            <h2>🔒 Verificar contraseña filtrada</h2>
+            <p style="color: var(--text-dim); font-size: 0.85rem; margin-top: -0.5rem;">
+                Esto NO es un scan: no se guarda en ningún lado, ni la contraseña ni el resultado. Se calcula
+                un hash localmente y solo se manda un fragmento de ese hash (nunca la contraseña completa) al
+                servicio público "Pwned Passwords".
+            </p>
+            <form id="password-form">
+                <label for="password-input">Contraseña a verificar</label>
+                <input type="password" id="password-input" name="password" placeholder="•••••••••••" autocomplete="off" required>
+                <button type="submit" id="password-button" style="margin-top: 0.75rem;">Verificar</button>
+                <div class="status-line" id="password-result"></div>
+            </form>
+        </section>
 
         <section class="panel">
             <h2>Nuevo scan</h2>

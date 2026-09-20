@@ -14,6 +14,10 @@ const resultsContainer = document.getElementById("results-container");
 const exportLinks = document.getElementById("export-links");
 const historyBody = document.getElementById("history-body");
 const scanButton = document.getElementById("scan-button");
+const passwordForm = document.getElementById("password-form");
+const passwordInput = document.getElementById("password-input");
+const passwordButton = document.getElementById("password-button");
+const passwordResult = document.getElementById("password-result");
 
 // Nombres lindos para mostrarle al usuario (el backend habla en inglés
 // técnico: "domain", "email", etc.)
@@ -184,6 +188,21 @@ function buildActionableView(moduleName, result) {
     }
   }
 
+  if (moduleName === "email_accounts" && result.registered_on) {
+    const unchecked = result.unchecked || [];
+    let html = "";
+    if (result.registered_on.length > 0) {
+      const items = result.registered_on.map((p) => `<li>${p}</li>`).join("");
+      html += `<p>Registrado en ${result.registered_on.length} de ${result.total_checked} plataformas:</p><ul>${items}</ul>`;
+    } else {
+      html += `<p>No se encontró registrado en ninguna de las plataformas chequeadas (best-effort, ver nota abajo).</p>`;
+    }
+    if (unchecked.length > 0) {
+      html += `<p>⚠️ ${unchecked.length} plataforma(s) no se pudieron verificar (red bloqueada o formulario cambiado): ${unchecked.map((u) => u.platform).join(", ")}.</p>`;
+    }
+    return html;
+  }
+
   return null;
 }
 
@@ -278,6 +297,42 @@ form.addEventListener("submit", async (event) => {
     statusLine.textContent = `Error: ${error.message}`;
   } finally {
     scanButton.disabled = false;
+  }
+});
+
+// --- Chequeo de contraseña filtrada. No es un scan: no se guarda en
+//     ningún lado (ni acá en el frontend, ni en el backend). ----------
+passwordForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const password = passwordInput.value;
+  if (!password) return;
+
+  passwordButton.disabled = true;
+  passwordResult.textContent = "Verificando...";
+
+  try {
+    const response = await fetch("/api/check-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    const data = await response.json();
+
+    if (data.error) {
+      passwordResult.textContent = `Error: ${data.error}`;
+    } else if (data.was_breached) {
+      passwordResult.textContent = `⚠️ Esta contraseña apareció en ${data.times_seen.toLocaleString("es")} filtraciones conocidas. No la uses.`;
+    } else {
+      passwordResult.textContent = "✅ No encontramos esta contraseña en las filtraciones conocidas (igual, no es garantía de que sea segura).";
+    }
+  } catch (error) {
+    passwordResult.textContent = `Error: ${error.message}`;
+  } finally {
+    // Borramos la contraseña del campo apenas terminamos: no hace falta
+    // dejarla escrita en pantalla más tiempo del necesario.
+    passwordInput.value = "";
+    passwordButton.disabled = false;
   }
 });
 

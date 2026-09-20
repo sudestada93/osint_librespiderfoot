@@ -16,6 +16,7 @@ from typing import Callable
 from ..modules import (
     dns_module,
     email_accounts_module,
+    email_breach_module,
     email_lookup_module,
     emails_module,
     geoip_module,
@@ -44,6 +45,7 @@ SYNC_MODULES: dict[str, Callable] = {
     "robots": robots_module.run,
     "wayback": wayback_module.run,
     "email_lookup": email_lookup_module.run,
+    "email_breach": email_breach_module.run,
     "phone_lookup": phone_lookup_module.run,
 }
 
@@ -81,6 +83,7 @@ MODULE_TARGET_TYPES: dict[str, set[str]] = {
     "ports": {"domain", "ip"},
     "email_lookup": {"email"},
     "email_accounts": {"email"},
+    "email_breach": {"email"},
     "phone_lookup": {"phone"},
     "phone_accounts": {"phone"},
     "username_lookup": {"username"},

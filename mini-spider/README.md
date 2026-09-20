@@ -32,10 +32,18 @@ MiniSpider recibe un objetivo en un solo campo de texto y **detecta automáticam
 | Módulo | Qué hace | Tipo |
 |---|---|---|
 | `email_lookup` | Dominio, registros MX, si es un email descartable/temporal, y perfil público en Gravatar | Pasivo |
-| `email_accounts` | Revisa si el email está registrado en 10 plataformas (Microsoft, Mozilla, Duolingo, Instagram, Spotify, Adobe, Twitter/X, Pinterest, WordPress.com, Codecademy) | Pasivo, no viene tildado por defecto |
+| `email_breach` | Revisa si el email aparece en brechas de datos conocidas (API gratuita de XposedOrNot) | Pasivo |
+| `email_accounts` | Revisa si el email está registrado en **+120 plataformas** (motor: librería `holehe`, más Microsoft y Duolingo agregados aparte) | Pasivo, no viene tildado por defecto |
 | `phone_lookup` | Valida el teléfono y extrae país, región, operador, tipo de línea y huso horario -- **100% offline**, sin ninguna llamada de red | Ninguno |
 | `phone_accounts` | Revisa si el teléfono está registrado en Microsoft e Instagram | Pasivo, no viene tildado por defecto |
 | `username_lookup` | Revisa en paralelo si el username existe en ~13 plataformas (GitHub, GitLab, Reddit, Instagram, Twitter/X, Telegram, Steam, etc.) | Pasivo |
+
+### Brechas de datos (¿mi email/contraseña fue filtrado?)
+
+Sí es posible chequear el email, con una alternativa gratuita real:
+
+- **`email_breach`** usa la API pública y gratuita de **XposedOrNot** (sin API key). Have I Been Pwned (el servicio más conocido) dejó de tener un plan gratuito para consultar por email de forma automatizada -- pero **su sitio web se puede seguir usando gratis a mano**, un email por vez, en `haveibeenpwned.com`, si querés una segunda opinión con más trayectoria que XposedOrNot.
+- El panel de **contraseña filtrada** (aparte, arriba del formulario) sigue siendo la opción más sólida y 100% gratis para eso: usa Pwned Passwords, de HIBP, que sí sigue siendo gratis porque funciona distinto (k-anonymity, no expone qué contraseña exacta se está buscando).
 
 `username_lookup`, `email_accounts` y `phone_accounts` son **best-effort, priorizando cobertura por sobre precisión** (decisión explícita del proyecto): prueban mecanismos públicos de cada sitio (páginas de perfil, o el formulario de "¿ya tenés cuenta?") que ninguna plataforma documenta ni garantiza -- pueden cambiar sin aviso, y algunas (Instagram, TikTok, Twitter/X, Pinterest) además tienen protecciones anti-bot. Un "no encontrado" no es garantía de que la cuenta no exista -- es una señal, no una certeza, y hay que esperar más falsos negativos que en el resto de los módulos. Ninguno de los dos viene tildado por defecto: consultar muchos emails/teléfonos seguido puede hacer que esos sitios te bloqueen temporalmente la IP, así que hay que pedirlos a propósito, con moderación.
 
@@ -49,9 +57,7 @@ Hay un panel aparte, arriba del formulario principal, para revisar si una contra
 
 **Este resultado nunca se guarda**: ni la contraseña, ni su hash, ni el resultado quedan en el historial ni en la base de datos. Se calcula al momento y se muestra en pantalla.
 
-No existe un chequeo gratis equivalente para "¿mi *email* apareció en alguna brecha?" -- ese servicio (Have I Been Pwned, búsqueda por email) dejó de tener plan gratuito.
-
-Los resultados con links (perfiles encontrados en `username_lookup`, el perfil de Gravatar en `email_lookup`) se muestran como enlaces clicables en la interfaz, además del JSON completo.
+Los resultados con links (perfiles encontrados en `username_lookup`, el perfil de Gravatar en `email_lookup`, las brechas en `email_breach`) se muestran como enlaces/listas clicables en la interfaz, además del JSON completo.
 
 Los resultados se guardan en una base de datos SQLite local, se pueden ver en el navegador, y se pueden exportar a JSON o CSV.
 

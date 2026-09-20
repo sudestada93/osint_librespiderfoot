@@ -26,6 +26,7 @@ from .models.scan import ScanRequest
 from .modules import (
     dns_module,
     email_accounts_module,
+    email_breach_module,
     email_lookup_module,
     emails_module,
     geoip_module,
@@ -201,6 +202,12 @@ def scan_wayback(target: str = Query(..., description="Dominio o host a consulta
 def scan_email_lookup(target: str = Query(..., description="Email puntual a analizar")):
     """Analiza un email: dominio, MX, si es descartable, y Gravatar público."""
     return {"target": target, "module": "email_lookup", "results": email_lookup_module.run(target)}
+
+
+@app.get("/api/scan/email_breach")
+def scan_email_breach(target: str = Query(..., description="Email a revisar en brechas de datos conocidas")):
+    """Revisa si el email aparece en brechas de datos conocidas, usando la API gratuita de XposedOrNot."""
+    return {"target": target, "module": "email_breach", "results": email_breach_module.run(target)}
 
 
 @app.get("/api/scan/phone_lookup")

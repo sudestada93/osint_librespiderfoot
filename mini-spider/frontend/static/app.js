@@ -188,6 +188,14 @@ function buildActionableView(moduleName, result) {
     }
   }
 
+  if (moduleName === "email_breach" && "was_breached" in result) {
+    if (result.was_breached) {
+      const items = result.breaches.map((b) => `<li>${b}</li>`).join("");
+      return `<p>⚠️ Este email apareció en ${result.total_breaches} brecha(s) de datos conocida(s):</p><ul>${items}</ul><p style="color: var(--text-dim); font-size: 0.85rem;">Si usás la misma contraseña en algún sitio de esta lista, cambiala.</p>`;
+    }
+    return `<p>✅ No se encontraron brechas conocidas para este email (fuente: XposedOrNot, no es una base de datos exhaustiva).</p>`;
+  }
+
   if ((moduleName === "email_accounts" || moduleName === "phone_accounts") && result.registered_on) {
     const unchecked = result.unchecked || [];
     let html = "";

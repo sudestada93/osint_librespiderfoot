@@ -1,34 +1,36 @@
 """
 Módulo de cuentas registradas por email: revisa si un email está dado
-de alta en varias plataformas grandes, usando el mismo mecanismo
-público que usa el formulario de esas plataformas para avisarte "ese
-email ya tiene cuenta" al registrarte o al pedir recuperar la
-contraseña. No inicia sesión en ningún lado, ni intenta entrar a
-ninguna cuenta: solo lee la respuesta pública que cada sitio ya da por
-su cuenta al validar un email.
+de alta en más de cien sitios, usando la librería `holehe`
+(https://github.com/megadose/holehe -- open-source, MIT license,
+mantenida por la comunidad OSINT, gratis, sin API key) como motor
+principal, más dos checkers propios para sitios que holehe no cubre
+(Microsoft cuenta personal, Duolingo).
 
-Es la misma técnica que usan herramientas como Holehe. Cubre 10
-plataformas (Microsoft, Mozilla, Duolingo, Instagram, Spotify, Adobe,
-Twitter/X, Pinterest, WordPress.com, Codecademy), priorizando cobertura
-por sobre precisión perfecta -- a propósito, por decisión explícita
-tomada con el usuario del proyecto. Tres advertencias importantes:
+`holehe` prueba el mismo mecanismo público que usa el formulario de
+"¿ya tenés cuenta?" o "olvidé mi contraseña" de cada sitio -- no inicia
+sesión en ningún lado. Se usa acá como librería (no su CLI): se
+importan sus módulos y se corren todos en paralelo con asyncio +
+httpx (holehe ya usa httpx internamente, compatible con el resto de
+MiniSpider sin adaptar nada).
+
+Priorizamos cobertura por sobre precisión perfecta (decisión explícita
+del proyecto). Advertencias:
 
   1. Ningún sitio documenta oficialmente este comportamiento -- lo
-     pueden cambiar en cualquier momento sin avisar. Un "no encontrado"
-     NO es garantía absoluta de que la cuenta no exista.
-  2. Consultar muchos emails seguido puede hacer que el sitio te
-     bloquee temporalmente la IP. Usalo con moderación, no en un loop.
-  3. El checker de Microsoft ya tuvo un falso negativo CONFIRMADO en
-     pruebas reales (ver su docstring). Los demás no se pudieron
-     probar en vivo contra cuentas reales conocidas durante el
-     desarrollo (red restringida del entorno de pruebas) -- es
-     razonable esperar que alguno más tenga el mismo problema. Tratá
-     cada resultado como una pista a verificar, no como un hecho.
+     pueden cambiar sin avisar. Un "no encontrado" NO es garantía.
+  2. Consultar muchos emails seguido puede hacer que algunos sitios
+     bloqueen temporalmente tu IP. Usalo con moderación, no en un loop.
+  3. Cuando holehe detecta que un sitio lo bloqueó/limitó (rate limit),
+     lo tratamos como "no verificado", nunca como "no existe" -- para
+     no repetir el falso negativo que tuvimos con Microsoft.
+  4. El checker de Microsoft (cuenta personal, no cubierto por holehe)
+     tuvo un falso negativo CONFIRMADO en pruebas reales: por eso solo
+     reporta cuando SÍ encuentra la cuenta, nunca cuando no la encuentra.
 """
 import asyncio
-import json as json_lib
 
 import httpx
+from holehe.core import get_functions, import_submodules, launch_module
 
 TIMEOUT_SECONDS = 10
 HEADERS = {
@@ -38,16 +40,21 @@ HEADERS = {
     )
 }
 
+# Cargamos los módulos de holehe una sola vez al importar este archivo
+# (no en cada consulta), para no pagar ese costo de importación en cada scan.
+_HOLEHE_MODULES = import_submodules("holehe.modules")
+_HOLEHE_WEBSITES = get_functions(_HOLEHE_MODULES)
+
 
 async def _check_microsoft(client: httpx.AsyncClient, email: str) -> dict:
     """
     login.microsoftonline.com expone públicamente el endpoint que usa su
-    propio formulario de login. IfExistsResult == 0 está documentado
-    como "la cuenta existe" -- pero en las pruebas de este proyecto dio
-    un falso negativo confirmado (marcó "no existe" para una cuenta real
-    y conocida). Por eso acá solo confiamos en el resultado cuando dice
-    que SÍ existe; cualquier otro caso queda como "no verificado" en vez
-    de afirmar que la cuenta no existe.
+    propio formulario de login para cuentas PERSONALES de Microsoft (no
+    cubierto por holehe, que solo chequea Office 365 corporativo).
+    IfExistsResult == 0 está documentado como "la cuenta existe" -- pero
+    tuvo un falso negativo confirmado en pruebas reales (marcó "no
+    existe" una cuenta real y conocida). Por eso acá solo confiamos en
+    el resultado cuando dice que SÍ existe.
     """
     try:
         response = await client.post(
@@ -57,28 +64,14 @@ async def _check_microsoft(client: httpx.AsyncClient, email: str) -> dict:
         )
         data = response.json()
         if data.get("IfExistsResult") == 0:
-            return {"platform": "Microsoft", "exists": True}
+            return {"domain": "microsoft.com (cuenta personal)", "exists": True}
         return {
-            "platform": "Microsoft",
+            "domain": "microsoft.com (cuenta personal)",
             "exists": None,
-            "error": "resultado no confiable para 'no existe' (ver docstring); no se puede confirmar la ausencia",
+            "error": "resultado no confiable para 'no existe' (falso negativo confirmado)",
         }
     except Exception as exc:
-        return {"platform": "Microsoft", "exists": None, "error": str(exc)}
-
-
-async def _check_mozilla(client: httpx.AsyncClient, email: str) -> dict:
-    """La API pública de cuentas de Mozilla (Firefox Sync) tiene un endpoint de status dedicado."""
-    try:
-        response = await client.get(
-            "https://api.accounts.firefox.com/v1/account/status",
-            params={"email": email},
-            timeout=TIMEOUT_SECONDS,
-        )
-        data = response.json()
-        return {"platform": "Mozilla (Firefox)", "exists": bool(data.get("exists"))}
-    except Exception as exc:
-        return {"platform": "Mozilla (Firefox)", "exists": None, "error": str(exc)}
+        return {"domain": "microsoft.com (cuenta personal)", "exists": None, "error": str(exc)}
 
 
 async def _check_duolingo(client: httpx.AsyncClient, email: str) -> dict:
@@ -91,160 +84,51 @@ async def _check_duolingo(client: httpx.AsyncClient, email: str) -> dict:
         )
         data = response.json()
         users = data.get("users") or []
-        return {"platform": "Duolingo", "exists": len(users) > 0}
+        return {"domain": "duolingo.com", "exists": len(users) > 0}
     except Exception as exc:
-        return {"platform": "Duolingo", "exists": None, "error": str(exc)}
-
-
-async def _check_instagram(client: httpx.AsyncClient, email: str) -> dict:
-    """El formulario de recuperación de cuenta de Instagram valida el email antes de enviar nada."""
-    try:
-        response = await client.post(
-            "https://www.instagram.com/api/v1/web/accounts/check_email/",
-            data={"email": email},
-            headers={"X-CSRFToken": "missing"},
-            timeout=TIMEOUT_SECONDS,
-        )
-        data = response.json()
-        return {"platform": "Instagram", "exists": bool(data.get("user_exists"))}
-    except Exception as exc:
-        return {"platform": "Instagram", "exists": None, "error": str(exc)}
-
-
-async def _check_spotify(client: httpx.AsyncClient, email: str) -> dict:
-    """El formulario de registro de Spotify valida el email en tiempo real mientras escribís."""
-    try:
-        response = await client.get(
-            "https://spclient.wg.spotify.com/signup/public/v1/account",
-            params={"validate": 1, "email": email},
-            timeout=TIMEOUT_SECONDS,
-        )
-        data = response.json()
-        # status 20 = "ya existe una cuenta con ese email" (documentado por la comunidad OSINT)
-        return {"platform": "Spotify", "exists": data.get("status") == 20}
-    except Exception as exc:
-        return {"platform": "Spotify", "exists": None, "error": str(exc)}
-
-
-async def _check_adobe(client: httpx.AsyncClient, email: str) -> dict:
-    """El login de Adobe responde distinto según si el email tiene cuenta creada."""
-    try:
-        response = await client.get(
-            "https://auth.services.adobe.com/signin/v2/users/accounts",
-            params={"realm": "Username", "email": email, "requestId": "minispider"},
-            timeout=TIMEOUT_SECONDS,
-        )
-        # Adobe no siempre da un campo JSON simple y estable: nos apoyamos
-        # en el status code (200 = encontrado) y, si no, lo dejamos como
-        # "no verificado" en vez de asumir que no existe.
-        if response.status_code == 200:
-            return {"platform": "Adobe", "exists": True}
-        if response.status_code == 404:
-            return {"platform": "Adobe", "exists": False}
-        return {"platform": "Adobe", "exists": None, "error": f"status HTTP inesperado: {response.status_code}"}
-    except Exception as exc:
-        return {"platform": "Adobe", "exists": None, "error": str(exc)}
-
-
-async def _check_twitter(client: httpx.AsyncClient, email: str) -> dict:
-    """El formulario de registro de Twitter/X valida disponibilidad de email en tiempo real."""
-    try:
-        response = await client.get(
-            "https://api.twitter.com/i/users/email_available.json",
-            params={"email": email},
-            timeout=TIMEOUT_SECONDS,
-        )
-        data = response.json()
-        if "valid" not in data:
-            return {"platform": "Twitter/X", "exists": None, "error": "respuesta inesperada"}
-        # "valid": true significa que el email está DISPONIBLE (no registrado)
-        return {"platform": "Twitter/X", "exists": not data["valid"]}
-    except Exception as exc:
-        return {"platform": "Twitter/X", "exists": None, "error": str(exc)}
-
-
-async def _check_pinterest(client: httpx.AsyncClient, email: str) -> dict:
-    """El formulario de registro de Pinterest valida el email contra este endpoint público."""
-    try:
-        data_param = json_lib.dumps({"options": {"email": email}, "context": {}})
-        response = await client.get(
-            "https://www.pinterest.com/resource/EmailExistsResource/get/",
-            params={"source_url": "/", "data": data_param},
-            timeout=TIMEOUT_SECONDS,
-        )
-        data = response.json()
-        exists = data.get("resource_response", {}).get("data")
-        if not isinstance(exists, bool):
-            return {"platform": "Pinterest", "exists": None, "error": "respuesta inesperada"}
-        return {"platform": "Pinterest", "exists": exists}
-    except Exception as exc:
-        return {"platform": "Pinterest", "exists": None, "error": str(exc)}
-
-
-async def _check_wordpress(client: httpx.AsyncClient, email: str) -> dict:
-    """La API pública de registro de WordPress.com valida el email antes de crear la cuenta."""
-    try:
-        response = await client.post(
-            "https://public-api.wordpress.com/rest/v1.1/signups/validation/user/",
-            data={"email": email, "locale": "en"},
-            timeout=TIMEOUT_SECONDS,
-        )
-        data = response.json()
-        email_messages = json_lib.dumps(data.get("messages", {}).get("email", "")).lower()
-        if not email_messages or email_messages == '""':
-            return {"platform": "WordPress.com", "exists": None, "error": "respuesta inesperada"}
-        exists = "taken" in email_messages or "already" in email_messages
-        return {"platform": "WordPress.com", "exists": exists}
-    except Exception as exc:
-        return {"platform": "WordPress.com", "exists": None, "error": str(exc)}
-
-
-async def _check_codecademy(client: httpx.AsyncClient, email: str) -> dict:
-    """La API pública de Codecademy expone si un email ya está tomado, para su formulario de registro."""
-    try:
-        response = await client.get(
-            "https://www.codecademy.com/api/users/email_taken",
-            params={"email": email},
-            timeout=TIMEOUT_SECONDS,
-        )
-        data = response.json()
-        if "taken" not in data:
-            return {"platform": "Codecademy", "exists": None, "error": "respuesta inesperada"}
-        return {"platform": "Codecademy", "exists": bool(data["taken"])}
-    except Exception as exc:
-        return {"platform": "Codecademy", "exists": None, "error": str(exc)}
-
-
-CHECKERS = [
-    _check_microsoft,
-    _check_mozilla,
-    _check_duolingo,
-    _check_instagram,
-    _check_spotify,
-    _check_adobe,
-    _check_twitter,
-    _check_pinterest,
-    _check_wordpress,
-    _check_codecademy,
-]
+        return {"domain": "duolingo.com", "exists": None, "error": str(exc)}
 
 
 async def run(email: str) -> dict:
-    """Revisa en paralelo si `email` está registrado en las plataformas de CHECKERS."""
+    """Revisa en paralelo si `email` está registrado en los sitios que cubre holehe + los checkers propios."""
     email = email.strip().lower()
     if "@" not in email:
         return {"error": f"'{email}' no parece un email válido"}
 
-    async with httpx.AsyncClient(headers=HEADERS) as client:
-        results = await asyncio.gather(*(checker(client, email) for checker in CHECKERS))
+    holehe_out: list[dict] = []
+    async with httpx.AsyncClient(headers=HEADERS, timeout=TIMEOUT_SECONDS) as client:
+        holehe_task = asyncio.gather(
+            *(launch_module(website, email, client, holehe_out) for website in _HOLEHE_WEBSITES),
+            return_exceptions=True,
+        )
+        extra_task = asyncio.gather(
+            _check_microsoft(client, email),
+            _check_duolingo(client, email),
+        )
+        await asyncio.gather(holehe_task, extra_task)
+        extra_results = extra_task.result()
 
-    registered_on = [r["platform"] for r in results if r.get("exists") is True]
-    not_registered_on = [r["platform"] for r in results if r.get("exists") is False]
-    unchecked = [r for r in results if r.get("exists") is None]
+    registered_on = sorted(r["domain"] for r in holehe_out if r.get("exists") is True)
+    not_registered_on = sorted(
+        r["domain"] for r in holehe_out if r.get("exists") is False and not r.get("rateLimit")
+    )
+    unchecked = [
+        {"platform": r["domain"], "exists": None, "error": "rate limit / bloqueo del sitio"}
+        for r in holehe_out
+        if r.get("rateLimit")
+    ]
+
+    for r in extra_results:
+        if r.get("exists") is True:
+            registered_on.append(r["domain"])
+        elif r.get("exists") is False:
+            not_registered_on.append(r["domain"])
+        else:
+            unchecked.append({"platform": r["domain"], "exists": None, "error": r.get("error")})
 
     return {
-        "registered_on": registered_on,
-        "not_registered_on": not_registered_on,
+        "registered_on": sorted(registered_on),
+        "not_registered_on": sorted(not_registered_on),
         "unchecked": unchecked,
-        "total_checked": len(results),
+        "total_checked": len(holehe_out) + len(extra_results),
     }

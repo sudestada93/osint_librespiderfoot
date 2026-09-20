@@ -33,3 +33,10 @@ pydantic==2.13.5
 # phonenumbers: port a Python de libphonenumber (la librería de Google),
 # valida y extrae datos de números de teléfono 100% offline, sin API key
 phonenumbers==9.0.39
+
+# holehe: revisa si un email está registrado en +100 sitios (GitHub:
+# megadose/holehe). La usamos como librería, no como su CLI. Trae trio
+# como dependencia (lo usa su propio CLI), pero nosotros solo llamamos
+# funciones que usan httpx, así que no hace falta tocar nuestro código
+# async existente.
+holehe==1.61

@@ -11,7 +11,7 @@ from pathlib import Path
 from fastapi import FastAPI, Query, Request
 from fastapi.templating import Jinja2Templates
 
-from .modules import dns_module, emails_module, ports_module, ssl_module, subdomains_module, whois_module
+from .modules import dns_module, emails_module, geoip_module, ports_module, ssl_module, subdomains_module, whois_module
 
 # BASE_DIR apunta siempre a la carpeta raíz del proyecto (mini-spider/),
 # sin importar desde qué directorio se ejecute el comando "uvicorn".
@@ -97,6 +97,13 @@ def scan_emails(target: str = Query(..., description="Dominio a buscar, ej: exam
     """Busca emails asociados al dominio combinando WHOIS, DNS y la página principal."""
     target = target.strip().lower()
     return {"target": target, "module": "emails", "results": emails_module.run(target)}
+
+
+@app.get("/api/scan/geoip")
+def scan_geoip(target: str = Query(..., description="IP o dominio a geolocalizar")):
+    """Geolocaliza target (IP o dominio, resuelto vía DNS) usando ip-api.com."""
+    target = target.strip().lower()
+    return {"target": target, "module": "geoip", "results": geoip_module.run(target)}
 
 
 @app.get("/")

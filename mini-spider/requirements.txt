@@ -13,3 +13,8 @@ python-multipart==0.0.9
 # === Fase 3 ===
 # dnspython: librería para hacer consultas DNS (A, AAAA, MX, TXT, NS, CNAME)
 dnspython==2.6.1
+
+# === Fase 4 ===
+# python-whois: consulta el protocolo WHOIS (puerto 43) sin depender de
+# tener el binario "whois" instalado en el sistema
+python-whois==0.9.6

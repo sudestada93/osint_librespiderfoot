@@ -23,3 +23,8 @@ python-whois==0.9.6
 # cryptography: parsea certificados X.509 (SSL/TLS) sin validar la cadena
 # de confianza, para poder inspeccionar certificados autofirmados o vencidos
 cryptography==50.0.1
+
+# === Fases 13-16 (orquestador, API de scan completo, exportación) ===
+# pydantic: FastAPI ya lo trae como dependencia, pero lo pineamos acá
+# porque lo importamos directamente para validar el body de POST /api/scan
+pydantic==2.13.5

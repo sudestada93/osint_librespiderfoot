@@ -166,14 +166,22 @@ function buildActionableView(moduleName, result) {
     return `<p>Encontrado en ${result.found_on.length} de ${result.total_checked} plataformas:</p><ul>${items}</ul>`;
   }
 
-  if (moduleName === "email_lookup" && result.gravatar) {
-    const g = result.gravatar;
-    return `
-      <p>
-        <img src="${g.avatar_url}" alt="avatar" width="48" height="48" style="border-radius:50%;vertical-align:middle;margin-right:0.5rem;">
-        Perfil público en Gravatar: <a href="${g.profile_url}" target="_blank" rel="noopener noreferrer">${g.display_name || g.profile_url}</a>
-      </p>
-    `;
+  if (moduleName === "email_lookup") {
+    if (result.gravatar) {
+      const g = result.gravatar;
+      return `
+        <p>
+          <img src="${g.avatar_url}" alt="avatar" width="48" height="48" style="border-radius:50%;vertical-align:middle;margin-right:0.5rem;">
+          Perfil público en Gravatar: <a href="${g.profile_url}" target="_blank" rel="noopener noreferrer">${g.display_name || g.profile_url}</a>
+        </p>
+      `;
+    }
+    // Un "sin Gravatar" solo es una conclusión confiable si pudimos
+    // consultar de verdad; si hubo un error de red, avisamos que no es
+    // un resultado, sino que no se pudo chequear.
+    if (result.gravatar_check_error) {
+      return `<p>⚠️ No se pudo verificar Gravatar (${result.gravatar_check_error}). Este campo no significa "no tiene perfil".</p>`;
+    }
   }
 
   return null;

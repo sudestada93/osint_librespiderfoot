@@ -34,30 +34,43 @@ DISPOSABLE_DOMAINS = {
 }
 
 
-def _check_gravatar(email: str) -> dict | None:
-    """Busca un perfil público de Gravatar asociado al email. Devuelve None si no hay o falla la consulta."""
+def _check_gravatar(email: str) -> tuple[dict | None, str | None]:
+    """
+    Busca un perfil público de Gravatar asociado al email.
+
+    Devuelve (perfil_o_None, error). Es importante distinguir "consultamos
+    y no tiene perfil" (error=None, perfil=None) de "no pudimos consultar"
+    (error tiene el motivo): un `null` por falla de red NO significa que
+    la persona no tenga Gravatar, solo que no lo pudimos chequear.
+    """
     md5_hash = hashlib.md5(email.encode()).hexdigest()
     url = GRAVATAR_URL.format(md5_hash=md5_hash)
     try:
         response = httpx.get(url, timeout=TIMEOUT_SECONDS, follow_redirects=True)
-    except Exception:
-        return None
+    except Exception as exc:
+        return None, f"no se pudo consultar Gravatar: {exc}"
+
+    if response.status_code == 404:
+        return None, None  # consulta exitosa: confirmado que no tiene perfil
     if response.status_code != 200:
-        return None
+        return None, f"Gravatar devolvió un status inesperado: {response.status_code}"
+
     try:
         data = response.json()
     except ValueError:
-        return None
+        return None, "Gravatar devolvió una respuesta que no se pudo interpretar como JSON"
 
     entries = data.get("entry")
     if not entries:
-        return None
+        return None, None  # consulta exitosa: no hay perfil público
+
     entry = entries[0]
-    return {
+    profile = {
         "profile_url": entry.get("profileUrl"),
         "display_name": entry.get("displayName"),
         "avatar_url": f"https://www.gravatar.com/avatar/{md5_hash}",
     }
+    return profile, None
 
 
 def run(email: str) -> dict:
@@ -72,11 +85,19 @@ def run(email: str) -> dict:
     mx_records = dns_data.get("MX", [])
     has_mail_server = bool(mx_records)
 
-    return {
+    gravatar, gravatar_error = _check_gravatar(email)
+
+    result = {
         "email": email,
         "domain": domain,
         "has_mail_server": has_mail_server,
         "mx_records": mx_records,
         "is_disposable_domain": domain in DISPOSABLE_DOMAINS,
-        "gravatar": _check_gravatar(email),
+        "gravatar": gravatar,
     }
+    if gravatar_error:
+        # No lo ponemos en la clave "gravatar" (que solo debe tener el
+        # perfil o None) sino aparte, para no mezclar "no tiene" con
+        # "no pudimos revisar".
+        result["gravatar_check_error"] = gravatar_error
+    return result

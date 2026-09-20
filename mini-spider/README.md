@@ -32,13 +32,16 @@ MiniSpider recibe un objetivo en un solo campo de texto y **detecta automáticam
 | Módulo | Qué hace | Tipo |
 |---|---|---|
 | `email_lookup` | Dominio, registros MX, si es un email descartable/temporal, y perfil público en Gravatar | Pasivo |
-| `email_accounts` | Revisa si el email está registrado en ~6 plataformas (Microsoft, Mozilla, Duolingo, Instagram, Spotify, Adobe) | Pasivo, no viene tildado por defecto |
+| `email_accounts` | Revisa si el email está registrado en 10 plataformas (Microsoft, Mozilla, Duolingo, Instagram, Spotify, Adobe, Twitter/X, Pinterest, WordPress.com, Codecademy) | Pasivo, no viene tildado por defecto |
 | `phone_lookup` | Valida el teléfono y extrae país, región, operador, tipo de línea y huso horario -- **100% offline**, sin ninguna llamada de red | Ninguno |
+| `phone_accounts` | Revisa si el teléfono está registrado en Microsoft e Instagram | Pasivo, no viene tildado por defecto |
 | `username_lookup` | Revisa en paralelo si el username existe en ~13 plataformas (GitHub, GitLab, Reddit, Instagram, Twitter/X, Telegram, Steam, etc.) | Pasivo |
 
-`username_lookup` y `email_accounts` son **best-effort**: prueban mecanismos públicos de cada sitio (páginas de perfil, o el formulario de "¿ya tenés cuenta?") que ninguna plataforma documenta ni garantiza -- pueden cambiar sin aviso, y algunas (Instagram, TikTok, Twitter/X, Pinterest) además tienen protecciones anti-bot. Un "no encontrado" no es garantía de que la cuenta no exista -- es una señal, no una certeza. `email_accounts` en particular no viene tildado por defecto: consultar muchos emails seguido puede hacer que esos sitios te bloqueen temporalmente la IP, así que hay que pedirlo a propósito, con moderación.
+`username_lookup`, `email_accounts` y `phone_accounts` son **best-effort, priorizando cobertura por sobre precisión** (decisión explícita del proyecto): prueban mecanismos públicos de cada sitio (páginas de perfil, o el formulario de "¿ya tenés cuenta?") que ninguna plataforma documenta ni garantiza -- pueden cambiar sin aviso, y algunas (Instagram, TikTok, Twitter/X, Pinterest) además tienen protecciones anti-bot. Un "no encontrado" no es garantía de que la cuenta no exista -- es una señal, no una certeza, y hay que esperar más falsos negativos que en el resto de los módulos. Ninguno de los dos viene tildado por defecto: consultar muchos emails/teléfonos seguido puede hacer que esos sitios te bloqueen temporalmente la IP, así que hay que pedirlos a propósito, con moderación.
 
-El checker de **Microsoft** dentro de `email_accounts` está confirmado como poco confiable para decir "no existe" (dio un falso negativo con una cuenta real conocida durante las pruebas): por diseño, solo reporta cuando SÍ encuentra la cuenta, y nunca afirma que no existe -- cualquier otro caso queda como "no verificado", no como "no encontrado".
+**`phone_accounts` cubre muchas menos plataformas que `email_accounts` a propósito, no por descuido**: WhatsApp, Telegram y Signal no exponen esto por HTTP simple (usan protocolos propios que necesitan una sesión de cliente autenticada), así que no hay una versión gratuita de esto para esas plataformas. Solo se cubren las que aceptan teléfono como identificador alternativo de una cuenta normal.
+
+El checker de **Microsoft** (en `email_accounts` y `phone_accounts`) está confirmado como poco confiable para decir "no existe" (dio un falso negativo con una cuenta real conocida durante las pruebas): por diseño, solo reporta cuando SÍ encuentra la cuenta, y nunca afirma que no existe -- cualquier otro caso queda como "no verificado", no como "no encontrado". Los demás checkers de `email_accounts`/`phone_accounts` no se pudieron probar en vivo contra cuentas reales conocidas durante el desarrollo (red restringida del entorno de pruebas): es razonable esperar que alguno más tenga el mismo tipo de problema.
 
 ### Verificar si una contraseña fue filtrada (no es un "scan")
 

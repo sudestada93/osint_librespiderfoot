@@ -31,6 +31,7 @@ from .modules import (
     geoip_module,
     headers_module,
     password_breach_module,
+    phone_accounts_module,
     phone_lookup_module,
     ports_module,
     robots_module,
@@ -230,6 +231,18 @@ async def scan_email_accounts(target: str = Query(..., description="Email a busc
     """
     result = await email_accounts_module.run(target)
     return {"target": target, "module": "email_accounts", "results": result}
+
+
+@app.get("/api/scan/phone_accounts")
+async def scan_phone_accounts(target: str = Query(..., description="Teléfono a buscar en varias plataformas")):
+    """
+    Revisa en paralelo si target está registrado en un set chico de
+    plataformas (Microsoft, Instagram) que aceptan teléfono como
+    identificador. Cobertura intencionalmente menor que email_accounts:
+    WhatsApp/Telegram/Signal no exponen esto por HTTP simple.
+    """
+    result = await phone_accounts_module.run(target)
+    return {"target": target, "module": "phone_accounts", "results": result}
 
 
 # --- Chequeo de contraseñas filtradas: NO es un "scan", no se guarda ------

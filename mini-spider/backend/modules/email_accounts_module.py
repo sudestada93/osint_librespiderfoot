@@ -7,21 +7,26 @@ contraseña. No inicia sesión en ningún lado, ni intenta entrar a
 ninguna cuenta: solo lee la respuesta pública que cada sitio ya da por
 su cuenta al validar un email.
 
-Es la misma técnica que usan herramientas como Holehe. Dos advertencias
-importantes:
+Es la misma técnica que usan herramientas como Holehe. Cubre 10
+plataformas (Microsoft, Mozilla, Duolingo, Instagram, Spotify, Adobe,
+Twitter/X, Pinterest, WordPress.com, Codecademy), priorizando cobertura
+por sobre precisión perfecta -- a propósito, por decisión explícita
+tomada con el usuario del proyecto. Tres advertencias importantes:
 
   1. Ningún sitio documenta oficialmente este comportamiento -- lo
      pueden cambiar en cualquier momento sin avisar. Un "no encontrado"
      NO es garantía absoluta de que la cuenta no exista.
   2. Consultar muchos emails seguido puede hacer que el sitio te
      bloquee temporalmente la IP. Usalo con moderación, no en un loop.
-
-No se pudo verificar en vivo el comportamiento exacto de cada
-plataforma durante el desarrollo (red restringida del entorno de
-pruebas): revisá los resultados con sentido crítico la primera vez que
-lo uses.
+  3. El checker de Microsoft ya tuvo un falso negativo CONFIRMADO en
+     pruebas reales (ver su docstring). Los demás no se pudieron
+     probar en vivo contra cuentas reales conocidas durante el
+     desarrollo (red restringida del entorno de pruebas) -- es
+     razonable esperar que alguno más tenga el mismo problema. Tratá
+     cada resultado como una pista a verificar, no como un hecho.
 """
 import asyncio
+import json as json_lib
 
 import httpx
 
@@ -141,6 +146,75 @@ async def _check_adobe(client: httpx.AsyncClient, email: str) -> dict:
         return {"platform": "Adobe", "exists": None, "error": str(exc)}
 
 
+async def _check_twitter(client: httpx.AsyncClient, email: str) -> dict:
+    """El formulario de registro de Twitter/X valida disponibilidad de email en tiempo real."""
+    try:
+        response = await client.get(
+            "https://api.twitter.com/i/users/email_available.json",
+            params={"email": email},
+            timeout=TIMEOUT_SECONDS,
+        )
+        data = response.json()
+        if "valid" not in data:
+            return {"platform": "Twitter/X", "exists": None, "error": "respuesta inesperada"}
+        # "valid": true significa que el email está DISPONIBLE (no registrado)
+        return {"platform": "Twitter/X", "exists": not data["valid"]}
+    except Exception as exc:
+        return {"platform": "Twitter/X", "exists": None, "error": str(exc)}
+
+
+async def _check_pinterest(client: httpx.AsyncClient, email: str) -> dict:
+    """El formulario de registro de Pinterest valida el email contra este endpoint público."""
+    try:
+        data_param = json_lib.dumps({"options": {"email": email}, "context": {}})
+        response = await client.get(
+            "https://www.pinterest.com/resource/EmailExistsResource/get/",
+            params={"source_url": "/", "data": data_param},
+            timeout=TIMEOUT_SECONDS,
+        )
+        data = response.json()
+        exists = data.get("resource_response", {}).get("data")
+        if not isinstance(exists, bool):
+            return {"platform": "Pinterest", "exists": None, "error": "respuesta inesperada"}
+        return {"platform": "Pinterest", "exists": exists}
+    except Exception as exc:
+        return {"platform": "Pinterest", "exists": None, "error": str(exc)}
+
+
+async def _check_wordpress(client: httpx.AsyncClient, email: str) -> dict:
+    """La API pública de registro de WordPress.com valida el email antes de crear la cuenta."""
+    try:
+        response = await client.post(
+            "https://public-api.wordpress.com/rest/v1.1/signups/validation/user/",
+            data={"email": email, "locale": "en"},
+            timeout=TIMEOUT_SECONDS,
+        )
+        data = response.json()
+        email_messages = json_lib.dumps(data.get("messages", {}).get("email", "")).lower()
+        if not email_messages or email_messages == '""':
+            return {"platform": "WordPress.com", "exists": None, "error": "respuesta inesperada"}
+        exists = "taken" in email_messages or "already" in email_messages
+        return {"platform": "WordPress.com", "exists": exists}
+    except Exception as exc:
+        return {"platform": "WordPress.com", "exists": None, "error": str(exc)}
+
+
+async def _check_codecademy(client: httpx.AsyncClient, email: str) -> dict:
+    """La API pública de Codecademy expone si un email ya está tomado, para su formulario de registro."""
+    try:
+        response = await client.get(
+            "https://www.codecademy.com/api/users/email_taken",
+            params={"email": email},
+            timeout=TIMEOUT_SECONDS,
+        )
+        data = response.json()
+        if "taken" not in data:
+            return {"platform": "Codecademy", "exists": None, "error": "respuesta inesperada"}
+        return {"platform": "Codecademy", "exists": bool(data["taken"])}
+    except Exception as exc:
+        return {"platform": "Codecademy", "exists": None, "error": str(exc)}
+
+
 CHECKERS = [
     _check_microsoft,
     _check_mozilla,
@@ -148,6 +222,10 @@ CHECKERS = [
     _check_instagram,
     _check_spotify,
     _check_adobe,
+    _check_twitter,
+    _check_pinterest,
+    _check_wordpress,
+    _check_codecademy,
 ]
 
 

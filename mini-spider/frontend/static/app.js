@@ -188,7 +188,7 @@ function buildActionableView(moduleName, result) {
     }
   }
 
-  if (moduleName === "email_accounts" && result.registered_on) {
+  if ((moduleName === "email_accounts" || moduleName === "phone_accounts") && result.registered_on) {
     const unchecked = result.unchecked || [];
     let html = "";
     if (result.registered_on.length > 0) {
@@ -199,6 +199,9 @@ function buildActionableView(moduleName, result) {
     }
     if (unchecked.length > 0) {
       html += `<p>⚠️ ${unchecked.length} plataforma(s) no se pudieron verificar (red bloqueada o formulario cambiado): ${unchecked.map((u) => u.platform).join(", ")}.</p>`;
+    }
+    if (result.note) {
+      html += `<p style="color: var(--text-dim); font-size: 0.85rem;">${result.note}</p>`;
     }
     return html;
   }

@@ -20,6 +20,7 @@ from ..modules import (
     emails_module,
     geoip_module,
     headers_module,
+    phone_accounts_module,
     phone_lookup_module,
     ports_module,
     robots_module,
@@ -50,17 +51,18 @@ ASYNC_MODULES: dict[str, Callable] = {
     "ports": ports_module.run,
     "username_lookup": username_lookup_module.run,
     "email_accounts": email_accounts_module.run,
+    "phone_accounts": phone_accounts_module.run,
 }
 
 ALL_MODULE_NAMES = sorted(set(SYNC_MODULES) | set(ASYNC_MODULES))
 
 # Módulos que no se corren en un scan "por defecto", hay que pedirlos
 # explícito: "ports" porque es activo (tráfico real contra el objetivo),
-# y "email_accounts" porque prueba el formulario de login/registro de
-# varios sitios de terceros -- usarlo seguido puede hacer que esos
-# sitios bloqueen temporalmente tu IP, así que no queremos dispararlo
-# sin que el usuario lo pida a propósito.
-_NOT_DEFAULT = {"ports", "email_accounts"}
+# y "email_accounts"/"phone_accounts" porque prueban el formulario de
+# login/registro de varios sitios de terceros -- usarlos seguido puede
+# hacer que esos sitios bloqueen temporalmente tu IP, así que no
+# queremos dispararlos sin que el usuario lo pida a propósito.
+_NOT_DEFAULT = {"ports", "email_accounts", "phone_accounts"}
 DEFAULT_MODULES = [name for name in ALL_MODULE_NAMES if name not in _NOT_DEFAULT]
 
 # Qué tipos de objetivo (ver core/target_utils.py) tiene sentido pasarle
@@ -80,6 +82,7 @@ MODULE_TARGET_TYPES: dict[str, set[str]] = {
     "email_lookup": {"email"},
     "email_accounts": {"email"},
     "phone_lookup": {"phone"},
+    "phone_accounts": {"phone"},
     "username_lookup": {"username"},
 }
 

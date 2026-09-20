@@ -28,3 +28,8 @@ cryptography==50.0.1
 # pydantic: FastAPI ya lo trae como dependencia, pero lo pineamos acá
 # porque lo importamos directamente para validar el body de POST /api/scan
 pydantic==2.13.5
+
+# === Búsqueda por email/teléfono/username ===
+# phonenumbers: port a Python de libphonenumber (la librería de Google),
+# valida y extrae datos de números de teléfono 100% offline, sin API key
+phonenumbers==9.0.39

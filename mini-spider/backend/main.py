@@ -20,17 +20,20 @@ from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from .core import database, export, orchestrator
+from .core import database, export, orchestrator, target_utils
 from .models.scan import ScanRequest
 from .modules import (
     dns_module,
+    email_lookup_module,
     emails_module,
     geoip_module,
     headers_module,
+    phone_lookup_module,
     ports_module,
     robots_module,
     ssl_module,
     subdomains_module,
+    username_lookup_module,
     wayback_module,
     whois_module,
 )
@@ -74,7 +77,27 @@ def ping():
 @app.get("/api/modules")
 def list_modules():
     """Devuelve los módulos disponibles, para que el frontend arme los checkboxes dinámicamente."""
-    return {"modules": orchestrator.ALL_MODULE_NAMES, "default_modules": orchestrator.DEFAULT_MODULES}
+    return {
+        "modules": orchestrator.ALL_MODULE_NAMES,
+        "default_modules": orchestrator.DEFAULT_MODULES,
+        "modules_by_target_type": {
+            target_type: orchestrator.modules_for_target_type(target_type)
+            for target_type in target_utils.TARGET_TYPES
+        },
+    }
+
+
+@app.get("/api/detect-type")
+def detect_type(target: str = Query(..., description="Texto a clasificar (dominio, IP, email, teléfono o username)")):
+    """Detecta el tipo de `target` (dominio/IP/email/teléfono/username), para que el frontend filtre módulos."""
+    target = target.strip()
+    target_type = target_utils.detect_target_type(target)
+    return {
+        "target": target,
+        "target_type": target_type,
+        "modules": orchestrator.modules_for_target_type(target_type),
+        "default_modules": orchestrator.default_modules_for_target_type(target_type),
+    }
 
 
 # --- Endpoints de un solo módulo (útiles para pruebas puntuales) -----------
@@ -170,15 +193,44 @@ def scan_wayback(target: str = Query(..., description="Dominio o host a consulta
     return {"target": target, "module": "wayback", "results": wayback_module.run(target)}
 
 
+@app.get("/api/scan/email_lookup")
+def scan_email_lookup(target: str = Query(..., description="Email puntual a analizar")):
+    """Analiza un email: dominio, MX, si es descartable, y Gravatar público."""
+    return {"target": target, "module": "email_lookup", "results": email_lookup_module.run(target)}
+
+
+@app.get("/api/scan/phone_lookup")
+def scan_phone_lookup(
+    target: str = Query(..., description="Número de teléfono a analizar"),
+    region: str = Query("US", min_length=2, max_length=2, description="Código de región ISO por defecto"),
+):
+    """Valida y extrae datos de un teléfono (país, operador, tipo de línea, huso horario), 100% offline."""
+    return {"target": target, "module": "phone_lookup", "results": phone_lookup_module.run(target, default_region=region)}
+
+
+@app.get("/api/scan/username_lookup")
+async def scan_username_lookup(target: str = Query(..., description="Username a buscar en varias plataformas")):
+    """Revisa en paralelo si target existe como username en una lista de plataformas conocidas (best-effort)."""
+    result = await username_lookup_module.run(target)
+    return {"target": target, "module": "username_lookup", "results": result}
+
+
 # --- Scan completo (orquestador) + historial persistido en SQLite ---------
 
 @app.post("/api/scan")
 async def create_scan(payload: ScanRequest):
     """
-    Corre varios módulos en paralelo contra payload.target, guarda el
-    resultado en la base de datos y lo devuelve.
+    Detecta el tipo de payload.target (dominio/IP/email/teléfono/
+    username), corre los módulos aplicables (o los que pidió el usuario)
+    en paralelo, guarda el resultado en la base de datos y lo devuelve.
     """
-    target = payload.target.strip().lower()
+    raw_target = payload.target.strip()
+    target_type = target_utils.detect_target_type(raw_target)
+    # Los dominios/IPs/emails se normalizan a minúsculas (no importa el
+    # casing); usernames y teléfonos se dejan tal cual los escribió el
+    # usuario, porque el casing puede importar en algunas plataformas.
+    target = raw_target.lower() if target_type in ("domain", "ip", "email") else raw_target
+
     module_kwargs = {
         "ports": {
             "ports_spec": payload.ports,
@@ -186,17 +238,27 @@ async def create_scan(payload: ScanRequest):
             "concurrency": payload.ports_concurrency,
         },
         "ssl": {"port": payload.ssl_port},
+        "phone_lookup": {"default_region": payload.phone_region},
     }
 
+    modules_to_run = (
+        payload.modules if payload.modules is not None else orchestrator.default_modules_for_target_type(target_type)
+    )
+
     try:
-        results = await orchestrator.run_scan(target, modules=payload.modules, module_kwargs=module_kwargs)
+        results = await orchestrator.run_scan(target, modules=modules_to_run, module_kwargs=module_kwargs)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    modules_used = payload.modules if payload.modules is not None else orchestrator.DEFAULT_MODULES
-    scan_id = database.save_scan(target, modules_used, results)
+    scan_id = database.save_scan(target, modules_to_run, results)
 
-    return {"scan_id": scan_id, "target": target, "modules": modules_used, "results": results}
+    return {
+        "scan_id": scan_id,
+        "target": target,
+        "target_type": target_type,
+        "modules": modules_to_run,
+        "results": results,
+    }
 
 
 @app.get("/api/scans")

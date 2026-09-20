@@ -9,12 +9,25 @@ from pydantic import BaseModel, Field
 
 
 class ScanRequest(BaseModel):
-    target: str = Field(..., min_length=1, description="Dominio, IP o host a analizar")
+    target: str = Field(
+        ...,
+        min_length=1,
+        description="Dominio, IP, email, teléfono o username a analizar (el tipo se detecta automáticamente)",
+    )
     modules: list[str] | None = Field(
         None,
-        description="Módulos a ejecutar (ver GET /api/modules). Si se omite, corre todos menos 'ports'.",
+        description=(
+            "Módulos a ejecutar (ver GET /api/modules). Si se omite, corre los módulos "
+            "por defecto correspondientes al tipo de target detectado (sin 'ports')."
+        ),
     )
     ports: str | None = Field(None, description="Spec de puertos para el módulo 'ports' (ej: 'all', '1-1024')")
     ports_timeout: float = Field(1.5, gt=0, description="Timeout por puerto, en segundos")
     ports_concurrency: int = Field(500, gt=0, le=5000, description="Conexiones simultáneas máximas")
     ssl_port: int = Field(443, gt=0, le=65535, description="Puerto a usar para el módulo SSL/TLS")
+    phone_region: str = Field(
+        "US",
+        min_length=2,
+        max_length=2,
+        description="Código de región ISO (ej: 'AR', 'ES', 'US') para interpretar teléfonos sin '+código de país'",
+    )

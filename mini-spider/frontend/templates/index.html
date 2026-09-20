@@ -15,25 +15,33 @@
 
     <main>
         <div class="disclaimer">
-            ⚠️ <strong>Uso responsable:</strong> usá esta herramienta únicamente contra objetivos propios
-            o con autorización explícita. El escaneo de puertos genera tráfico real contra el host indicado.
-            El uso indebido puede ser ilegal según tu jurisdicción.
+            ⚠️ <strong>Uso responsable:</strong> usá esta herramienta únicamente contra objetivos propios,
+            datos tuyos, o con autorización explícita. Buscar el email, teléfono o username de OTRA persona
+            sin su consentimiento puede ser ilegal (leyes de protección de datos/privacidad) según tu
+            jurisdicción, incluso si toda la información viene de fuentes públicas. El escaneo de puertos
+            además genera tráfico real contra el host indicado.
         </div>
 
         <section class="panel">
             <h2>Nuevo scan</h2>
             <form id="scan-form">
-                <label for="target">Objetivo (dominio, IP o host)</label>
-                <input type="text" id="target" name="target" placeholder="ejemplo.com" required>
+                <label for="target">Objetivo (dominio, IP, email, teléfono o username)</label>
+                <input type="text" id="target" name="target" placeholder="ejemplo.com / usuario@mail.com / +5491122334455 / usuario123" required>
+                <div class="status-line" id="target-type-hint"></div>
 
                 <label style="margin-top: 1rem;">Módulos a ejecutar</label>
                 <div class="modules-grid" id="modules-grid">
-                    <!-- Se completa dinámicamente desde /api/modules -->
+                    <!-- Se completa dinámicamente según el tipo de objetivo detectado -->
                 </div>
 
                 <div id="ports-fields" style="display: none; margin-bottom: 1rem;">
                     <label for="ports-spec">Puertos (vacío = lista común; "all" = 1-65535; o rango "1-1024")</label>
                     <input type="text" id="ports-spec" name="ports-spec" placeholder="all">
+                </div>
+
+                <div id="phone-region-fields" style="display: none; margin-bottom: 1rem;">
+                    <label for="phone-region">Región por defecto (solo si el teléfono NO empieza con "+código de país")</label>
+                    <input type="text" id="phone-region" name="phone-region" placeholder="AR, ES, US..." maxlength="2" style="width: 100px;">
                 </div>
 
                 <button type="submit" id="scan-button">Escanear</button>

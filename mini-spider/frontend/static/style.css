@@ -175,6 +175,21 @@ button.secondary {
   border-top: 1px solid var(--border);
 }
 
+.module-actionable {
+  padding: 0.75rem 0.9rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.module-actionable ul {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.module-actionable a {
+  color: var(--accent);
+}
+
 table.history {
   width: 100%;
   border-collapse: collapse;

@@ -8,8 +8,10 @@ en fases siguientes.
 """
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.templating import Jinja2Templates
+
+from .modules import dns_module
 
 # BASE_DIR apunta siempre a la carpeta raíz del proyecto (mini-spider/),
 # sin importar desde qué directorio se ejecute el comando "uvicorn".
@@ -32,6 +34,13 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "frontend" / "templates"))
 def ping():
     """Endpoint simple en formato JSON para verificar que el backend responde."""
     return {"status": "ok", "message": "MiniSpider backend funcionando"}
+
+
+@app.get("/api/scan/dns")
+def scan_dns(target: str = Query(..., description="Dominio a resolver, ej: example.com")):
+    """Ejecuta el módulo DNS sobre el dominio indicado y devuelve sus registros."""
+    target = target.strip().lower()
+    return {"target": target, "module": "dns", "results": dns_module.run(target)}
 
 
 @app.get("/")

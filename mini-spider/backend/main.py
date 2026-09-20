@@ -11,7 +11,7 @@ from pathlib import Path
 from fastapi import FastAPI, Query, Request
 from fastapi.templating import Jinja2Templates
 
-from .modules import dns_module, subdomains_module, whois_module
+from .modules import dns_module, ports_module, subdomains_module, whois_module
 
 # BASE_DIR apunta siempre a la carpeta raíz del proyecto (mini-spider/),
 # sin importar desde qué directorio se ejecute el comando "uvicorn".
@@ -55,6 +55,31 @@ def scan_subdomains(target: str = Query(..., description="Dominio a buscar, ej: 
     """Ejecuta el módulo de subdominios (crt.sh) sobre el dominio indicado."""
     target = target.strip().lower()
     return {"target": target, "module": "subdomains", "results": subdomains_module.run(target)}
+
+
+@app.get("/api/scan/ports")
+async def scan_ports(
+    target: str = Query(..., description="Host o IP a escanear"),
+    ports: str | None = Query(
+        None,
+        description=(
+            "Puertos a escanear: 'all' (1-65535), lista '80,443,8080', "
+            "rango '1-1024', o combinación '22,80,1000-2000'. "
+            "Si se omite, usa una lista de puertos comunes."
+        ),
+    ),
+    timeout: float = Query(1.5, gt=0, description="Timeout por puerto, en segundos"),
+    concurrency: int = Query(500, gt=0, le=5000, description="Conexiones simultáneas máximas"),
+):
+    """
+    Ejecuta un escaneo TCP connect scan sobre `target`.
+
+    ADVERTENCIA: esto genera tráfico real contra el host indicado.
+    Usalo solo contra hosts propios o con autorización explícita.
+    """
+    target = target.strip().lower()
+    result = await ports_module.run(target, ports_spec=ports, timeout=timeout, concurrency=concurrency)
+    return {"target": target, "module": "ports", "results": result}
 
 
 @app.get("/")

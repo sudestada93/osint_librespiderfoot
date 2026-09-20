@@ -1,0 +1,14 @@
+# Entorno virtual (cada quien crea el suyo con requirements.txt)
+venv/
+__pycache__/
+*.pyc
+
+# Base de datos local generada en tiempo de ejecución
+data/*.db
+data/*.sqlite3
+
+# Archivos exportados por el usuario
+data/exports/
+
+# Configuración local / variables de entorno
+.env

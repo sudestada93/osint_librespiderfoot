@@ -1,0 +1,11 @@
+# === Dependencias base (Fase 1) ===
+# FastAPI: framework web para crear la API y servir el frontend
+fastapi==0.115.0
+# Uvicorn: servidor que ejecuta la aplicación FastAPI (con extras como recarga automática)
+uvicorn[standard]==0.30.6
+# Jinja2: motor de plantillas HTML (lo usamos para el frontend embebido en el backend)
+jinja2==3.1.4
+# httpx: cliente HTTP asíncrono, lo usaremos para consultar APIs externas (crt.sh, ip-api, etc.)
+httpx==0.27.2
+# python-multipart: necesario para que FastAPI reciba datos de formularios HTML
+python-multipart==0.0.9

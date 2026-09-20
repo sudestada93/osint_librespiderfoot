@@ -1,0 +1,205 @@
+/* Estilos de MiniSpider. Vanilla CSS, sin frameworks, para no
+   depender de ninguna build tool ni de internet para cargar librerías. */
+
+:root {
+  --bg: #0f1117;
+  --bg-panel: #171a23;
+  --border: #2a2e3a;
+  --text: #e6e8ef;
+  --text-dim: #9aa0b0;
+  --accent: #5b8cff;
+  --danger: #ff6b6b;
+  --ok: #5fd97a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+header {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--border);
+}
+
+header h1 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.5rem;
+}
+
+header p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+main {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem 4rem;
+}
+
+.disclaimer {
+  background: #2a1f1f;
+  border: 1px solid #4a2f2f;
+  color: #ffb4b4;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.panel h2 {
+  margin-top: 0;
+  font-size: 1.05rem;
+}
+
+label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 0.35rem;
+}
+
+input[type="text"] {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.modules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.5rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.modules-grid label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  margin-bottom: 0;
+  cursor: pointer;
+}
+
+.modules-grid input[type="checkbox"] {
+  cursor: pointer;
+}
+
+button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 0.65rem 1.3rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+button.secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.status-line {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.module-result {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+
+.module-result summary {
+  padding: 0.6rem 0.9rem;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.module-result summary .badge {
+  font-size: 0.75rem;
+  font-weight: normal;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+
+.badge.ok {
+  background: rgba(95, 217, 122, 0.15);
+  color: var(--ok);
+}
+
+.badge.error {
+  background: rgba(255, 107, 107, 0.15);
+  color: var(--danger);
+}
+
+.module-result pre {
+  margin: 0;
+  padding: 0.9rem;
+  background: var(--bg);
+  overflow-x: auto;
+  font-size: 0.8rem;
+  border-top: 1px solid var(--border);
+}
+
+table.history {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+table.history th,
+table.history td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+table.history tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+table.history a {
+  color: var(--accent);
+  text-decoration: none;
+  margin-right: 0.75rem;
+}
+
+.export-links a {
+  color: var(--accent);
+  margin-right: 1rem;
+  font-size: 0.85rem;
+}

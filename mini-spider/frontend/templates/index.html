@@ -2,13 +2,69 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ app_name }}</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <!-- Página placeholder de la Fase 2. El formulario real de búsqueda
-         y la tabla de resultados se agregan en la Fase de frontend. -->
-    <h1>{{ app_name }} 🕷️</h1>
-    <p>Backend funcionando correctamente (Fase 2).</p>
-    <p>Probá el endpoint de estado en <a href="/api/ping">/api/ping</a>.</p>
+    <header>
+        <h1>{{ app_name }} 🕷️</h1>
+        <p>Herramienta OSINT open-source para reconocimiento pasivo (y algún módulo activo, marcado explícitamente).</p>
+    </header>
+
+    <main>
+        <div class="disclaimer">
+            ⚠️ <strong>Uso responsable:</strong> usá esta herramienta únicamente contra objetivos propios
+            o con autorización explícita. El escaneo de puertos genera tráfico real contra el host indicado.
+            El uso indebido puede ser ilegal según tu jurisdicción.
+        </div>
+
+        <section class="panel">
+            <h2>Nuevo scan</h2>
+            <form id="scan-form">
+                <label for="target">Objetivo (dominio, IP o host)</label>
+                <input type="text" id="target" name="target" placeholder="ejemplo.com" required>
+
+                <label style="margin-top: 1rem;">Módulos a ejecutar</label>
+                <div class="modules-grid" id="modules-grid">
+                    <!-- Se completa dinámicamente desde /api/modules -->
+                </div>
+
+                <div id="ports-fields" style="display: none; margin-bottom: 1rem;">
+                    <label for="ports-spec">Puertos (vacío = lista común; "all" = 1-65535; o rango "1-1024")</label>
+                    <input type="text" id="ports-spec" name="ports-spec" placeholder="all">
+                </div>
+
+                <button type="submit" id="scan-button">Escanear</button>
+                <div class="status-line" id="status-line"></div>
+            </form>
+        </section>
+
+        <section class="panel" id="results-panel" style="display: none;">
+            <h2>Resultados</h2>
+            <div class="export-links" id="export-links"></div>
+            <div id="results-container"></div>
+        </section>
+
+        <section class="panel">
+            <h2>Historial de scans</h2>
+            <table class="history">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Objetivo</th>
+                        <th>Fecha</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body">
+                    <tr><td colspan="4">Cargando...</td></tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <script src="/static/app.js"></script>
 </body>
 </html>

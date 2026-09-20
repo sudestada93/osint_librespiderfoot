@@ -18,3 +18,8 @@ dnspython==2.6.1
 # python-whois: consulta el protocolo WHOIS (puerto 43) sin depender de
 # tener el binario "whois" instalado en el sistema
 python-whois==0.9.6
+
+# === Fase 7 ===
+# cryptography: parsea certificados X.509 (SSL/TLS) sin validar la cadena
+# de confianza, para poder inspeccionar certificados autofirmados o vencidos
+cryptography==50.0.1

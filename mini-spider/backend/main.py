@@ -11,7 +11,7 @@ from pathlib import Path
 from fastapi import FastAPI, Query, Request
 from fastapi.templating import Jinja2Templates
 
-from .modules import dns_module, ports_module, subdomains_module, whois_module
+from .modules import dns_module, ports_module, ssl_module, subdomains_module, whois_module
 
 # BASE_DIR apunta siempre a la carpeta raíz del proyecto (mini-spider/),
 # sin importar desde qué directorio se ejecute el comando "uvicorn".
@@ -80,6 +80,16 @@ async def scan_ports(
     target = target.strip().lower()
     result = await ports_module.run(target, ports_spec=ports, timeout=timeout, concurrency=concurrency)
     return {"target": target, "module": "ports", "results": result}
+
+
+@app.get("/api/scan/ssl")
+def scan_ssl(
+    target: str = Query(..., description="Host o dominio a consultar"),
+    port: int = Query(443, gt=0, le=65535, description="Puerto TLS, por defecto 443"),
+):
+    """Ejecuta el módulo SSL/TLS: extrae el certificado presentado por target:port."""
+    target = target.strip().lower()
+    return {"target": target, "module": "ssl", "results": ssl_module.run(target, port=port)}
 
 
 @app.get("/")

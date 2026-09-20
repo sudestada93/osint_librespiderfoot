@@ -37,9 +37,12 @@ HEADERS = {
 async def _check_microsoft(client: httpx.AsyncClient, email: str) -> dict:
     """
     login.microsoftonline.com expone públicamente el endpoint que usa su
-    propio formulario de login para saber si mostrar el paso de
-    contraseña o el de "crear cuenta". IfExistsResult == 0 documentado
-    como "la cuenta existe".
+    propio formulario de login. IfExistsResult == 0 está documentado
+    como "la cuenta existe" -- pero en las pruebas de este proyecto dio
+    un falso negativo confirmado (marcó "no existe" para una cuenta real
+    y conocida). Por eso acá solo confiamos en el resultado cuando dice
+    que SÍ existe; cualquier otro caso queda como "no verificado" en vez
+    de afirmar que la cuenta no existe.
     """
     try:
         response = await client.post(
@@ -48,7 +51,13 @@ async def _check_microsoft(client: httpx.AsyncClient, email: str) -> dict:
             timeout=TIMEOUT_SECONDS,
         )
         data = response.json()
-        return {"platform": "Microsoft", "exists": data.get("IfExistsResult") == 0}
+        if data.get("IfExistsResult") == 0:
+            return {"platform": "Microsoft", "exists": True}
+        return {
+            "platform": "Microsoft",
+            "exists": None,
+            "error": "resultado no confiable para 'no existe' (ver docstring); no se puede confirmar la ausencia",
+        }
     except Exception as exc:
         return {"platform": "Microsoft", "exists": None, "error": str(exc)}
 

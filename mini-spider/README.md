@@ -38,6 +38,8 @@ MiniSpider recibe un objetivo en un solo campo de texto y **detecta automáticam
 
 `username_lookup` y `email_accounts` son **best-effort**: prueban mecanismos públicos de cada sitio (páginas de perfil, o el formulario de "¿ya tenés cuenta?") que ninguna plataforma documenta ni garantiza -- pueden cambiar sin aviso, y algunas (Instagram, TikTok, Twitter/X, Pinterest) además tienen protecciones anti-bot. Un "no encontrado" no es garantía de que la cuenta no exista -- es una señal, no una certeza. `email_accounts` en particular no viene tildado por defecto: consultar muchos emails seguido puede hacer que esos sitios te bloqueen temporalmente la IP, así que hay que pedirlo a propósito, con moderación.
 
+El checker de **Microsoft** dentro de `email_accounts` está confirmado como poco confiable para decir "no existe" (dio un falso negativo con una cuenta real conocida durante las pruebas): por diseño, solo reporta cuando SÍ encuentra la cuenta, y nunca afirma que no existe -- cualquier otro caso queda como "no verificado", no como "no encontrado".
+
 ### Verificar si una contraseña fue filtrada (no es un "scan")
 
 Hay un panel aparte, arriba del formulario principal, para revisar si una contraseña puntual apareció en una brecha de datos conocida. Usa la API pública **Pwned Passwords** (k-anonymity: la contraseña completa nunca sale de tu máquina, solo se manda un fragmento de su hash) -- gratis, sin API key.
